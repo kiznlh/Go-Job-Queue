@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -14,6 +17,14 @@ type Job struct {
 	Retries   int       `json:"retries"`
 }
 
+func (job Job) String() string {
+	out, err := json.Marshal(job)
+	if err != nil {
+		return "Error marshaling"
+	}
+	return string(out)
+}
+
 type Queue interface {
 	Enqueue(job Job) error
 	Dequeue() (Job, error)
@@ -21,6 +32,31 @@ type Queue interface {
 
 type Worker interface {
 	Work(job Job) error
+}
+type MemoryQueue struct {
+	jobs []Job
+}
+
+func (q *MemoryQueue) Enqueue(job Job) error {
+	q.jobs = append(q.jobs, job)
+	return nil
+}
+
+type PrintWorker struct{}
+
+func (w *PrintWorker) Work(job Job) error {
+	fmt.Println(job)
+	return nil
+}
+
+func (q *MemoryQueue) Dequeue() (Job, error) {
+	if len(q.jobs) == 0 {
+		return Job{}, errors.New("Empty Queue")
+	}
+
+	job := q.jobs[0]
+	q.jobs = q.jobs[1:]
+	return job, nil
 }
 
 func main() {
